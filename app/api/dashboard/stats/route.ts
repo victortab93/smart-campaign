@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Database, initializeDatabase } from '@/lib/database'
 import { UserBFF } from '@/lib/bff/user-bff'
 
+export const dynamic = 'force-dynamic'
+
 // Initialize database connection
 initializeDatabase()
 

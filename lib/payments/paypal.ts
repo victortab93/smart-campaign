@@ -83,7 +83,7 @@ async function getAccessToken(): Promise<string> {
   if (!res.ok) {
     throw new Error('Failed to get PayPal access token')
   }
-  const data = await res.json()
+  const data = await res.json() as { access_token: string }
   return data.access_token
 }
 
@@ -119,7 +119,7 @@ export async function verifyWebhookSignature(args: {
   if (!res.ok) {
     return false
   }
-  const data = await res.json()
+  const data = await res.json() as { verification_status: string }
   return data.verification_status === 'SUCCESS'
 }
 
