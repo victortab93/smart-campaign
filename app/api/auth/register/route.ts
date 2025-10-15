@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         id: result.user.id.toString(),
         email: result.user.email,
         name: result.user.name,
-        organizationId: result.user.organization_id?.toString(),
+        organizationId: result.user.organizationId?.toString(),
         roles: result.user.roles.map(r => r.code)
       }
     })

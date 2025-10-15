@@ -1,20 +1,10 @@
 import Link from 'next/link'
 import { User, Mail, Calendar, Shield, MoreVertical, Edit, Trash2, Eye } from 'lucide-react'
+import { UserWithRoles } from '@/lib/repositories/user.repository'
 
-interface User {
-  id: bigint
-  email: string
-  name: string | null
-  roleInOrg: string
-  isActive: boolean
-  createdAt: Date
-  organization: {
-    name: string
-  } | null
-}
 
 interface RecentUsersProps {
-  users: User[]
+  users: UserWithRoles[]
 }
 
 export function RecentUsers({ users }: RecentUsersProps) {

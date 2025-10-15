@@ -1,44 +1,43 @@
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { initializeDatabase, Database } from '@/lib/database'
+import { UserRepository } from '@/lib/repositories/user.repository'
 import { UsersList } from '@/components/admin/UsersList'
 import { UsersHeader } from '@/components/admin/UsersHeader'
 
 export default async function AdminUsersPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession()
   
   if (!session) {
     return null
   }
 
-  // Get all users with their organizations and roles
-  const users = await prisma.user.findMany({
-    include: {
-      organization: true,
-      userRoles: {
-        include: {
-          role: true
-        }
-      },
-      subscriptions: {
-        where: { status: 'ACTIVE' },
-        include: {
-          plan: true
-        }
-      }
-    },
-    orderBy: { createdAt: 'desc' }
-  })
+  initializeDatabase()
+  const db = new Database()
+  const userRepo = new UserRepository(db)
 
-  // Get all roles for filtering
-  const roles = await prisma.role.findMany({
-    orderBy: { name: 'asc' }
-  })
+  const usersRaw = await userRepo.findAll(100, 0)
+  // map to UI shape expected by UsersList
+  const users = usersRaw.map(u => ({
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    roleInOrg: u.roleInOrg,
+    isActive: u.isActive,
+    createdAt: u.createdAt,
+    organization: u.organization ? { name: u.organization.name } : null,
+    userRoles: u.roles.map(r => ({ role: { code: r.code, name: r.name } })),
+    subscriptions: []
+  }))
+
+  const roles = await db.query<{ id: bigint; code: string; name: string }>(
+    `SELECT id, code, name FROM roles ORDER BY name ASC`
+  )
+  await db.release()
 
   return (
     <div className="space-y-6">
       <UsersHeader totalUsers={users.length} />
-      <UsersList users={users} roles={roles} />
+      <UsersList users={users} roles={roles.rows} />
     </div>
   )
 }

@@ -1,51 +1,64 @@
 'use client'
 
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { Check, X } from 'lucide-react'
-
-interface Plan {
-  id: bigint
-  code: string
-  name: string
-  description: string | null
-  priceMonthly: number
-  priceYearly: number | null
-  planFeatures: {
-    feature: {
-      name: string
-      type: string
-    }
-    value: string
-  }[]
-}
+import type { PlanOption } from '@/types/domain'
 
 interface PlanComparisonProps {
-  plans: Plan[]
-  currentPlan?: Plan
+  plans: PlanOption[]
+  currentPlan?: PlanOption
 }
 
 export function PlanComparison({ plans, currentPlan }: PlanComparisonProps) {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly')
 
-  const getPrice = (plan: Plan) => {
+  const getPrice = (plan: PlanOption) => {
     return billingCycle === 'yearly' && plan.priceYearly 
       ? plan.priceYearly 
       : plan.priceMonthly
   }
 
-  const getBillingText = (plan: Plan) => {
+  const getBillingText = (plan: PlanOption) => {
     return billingCycle === 'yearly' && plan.priceYearly 
       ? '/year' 
       : '/month'
   }
 
-  const isCurrentPlan = (plan: Plan) => {
+  const isCurrentPlan = (plan: PlanOption) => {
     return currentPlan?.id === plan.id
   }
 
-  const getFeatureValue = (plan: Plan, featureName: string) => {
+  const getFeatureValue = (plan: PlanOption, featureName: string) => {
     const planFeature = plan.planFeatures.find(pf => pf.feature.name === featureName)
     return planFeature?.value || 'false'
+  }
+
+  const startCheckout = async (plan: PlanOption) => {
+    try {
+      const referenceId = `sub-${plan.id}-${Date.now()}`
+      const res = await fetch('/api/billing/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: getPrice(plan).toFixed(2),
+          currency: 'USD',
+          referenceId,
+          description: `SmartCampaign ${plan.name} plan`,
+          returnUrl: `${window.location.origin}/dashboard/subscription?status=approved`,
+          cancelUrl: `${window.location.origin}/dashboard/subscription?status=cancelled`
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create order')
+      if (data.approveUrl) {
+        window.location.href = data.approveUrl
+      } else {
+        toast.error('No approval link from PayPal')
+      }
+    } catch (err) {
+      toast.error('Checkout failed')
+    }
   }
 
   // Get all unique features across all plans
@@ -156,7 +169,7 @@ export function PlanComparison({ plans, currentPlan }: PlanComparisonProps) {
                     Current Plan
                   </button>
                 ) : (
-                  <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                  <button onClick={() => startCheckout(plan)} className="w-full bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     {currentPlan ? 'Switch Plan' : 'Get Started'}
                   </button>
                 )}

@@ -20,8 +20,8 @@ export interface DashboardStats {
 
 export interface ContactData {
   id?: bigint
-  first_name?: string
-  last_name?: string
+  firstName?: string
+  lastName?: string
   email: string
   phone?: string
   tags?: string[]
@@ -72,8 +72,8 @@ export class UserBFF {
   async getDashboardStats(context: UserContext): Promise<DashboardStats> {
     const [contactsCount, campaignsCount, campaignsStats] = await Promise.all([
       this.contactRepository.count({
-        user_id: context.userId,
-        organization_id: context.organizationId
+        userId: context.userId,
+        organizationId: context.organizationId
       }),
       this.campaignRepository.count({
         user_id: context.userId,
@@ -114,8 +114,8 @@ export class UserBFF {
     offset?: number
   } = {}) {
     return await this.contactRepository.findAll({
-      user_id: context.userId,
-      organization_id: context.organizationId,
+      userId: context.userId,
+      organizationId: context.organizationId,
       ...filters
     })
   }
@@ -125,7 +125,7 @@ export class UserBFF {
     
     // Check if user has access to this contact
     if (!contact || 
-        (contact.user_id !== context.userId && contact.organization_id !== context.organizationId)) {
+        (contact.userId !== context.userId && contact.organizationId !== context.organizationId)) {
       return null
     }
 
@@ -134,8 +134,8 @@ export class UserBFF {
 
   async createContact(context: UserContext, data: ContactData) {
     return await this.contactRepository.create({
-      user_id: context.userId,
-      organization_id: context.organizationId,
+      userId: context.userId,
+      organizationId: context.organizationId,
       ...data
     })
   }

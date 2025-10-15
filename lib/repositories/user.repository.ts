@@ -1,15 +1,16 @@
 import { Database } from '../database'
 
+// Use camelCase in TypeScript; map from snake_case via SQL aliases
 export interface User {
   id: bigint
-  organization_id: bigint | null
+  organizationId: bigint | null
   email: string
-  password_hash: string | null
+  passwordHash: string | null
   name: string | null
-  role_in_org: string
-  is_active: boolean
-  created_at: Date
-  updated_at: Date
+  roleInOrg: string
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
 }
 
 export interface UserWithRoles extends User {
@@ -17,7 +18,7 @@ export interface UserWithRoles extends User {
     id: bigint
     code: string
     name: string
-    organization_id: bigint | null
+    organizationId: bigint | null
   }[]
   organization?: {
     id: bigint
@@ -27,20 +28,20 @@ export interface UserWithRoles extends User {
 
 export interface CreateUserData {
   email: string
-  password_hash?: string
+  passwordHash?: string
   name?: string
-  role_in_org?: string
-  organization_id?: bigint
-  is_active?: boolean
+  roleInOrg?: string
+  organizationId?: bigint
+  isActive?: boolean
 }
 
 export interface UpdateUserData {
   email?: string
-  password_hash?: string
+  passwordHash?: string
   name?: string
-  role_in_org?: string
-  organization_id?: bigint
-  is_active?: boolean
+  roleInOrg?: string
+  organizationId?: bigint
+  isActive?: boolean
 }
 
 export class UserRepository {
@@ -50,21 +51,21 @@ export class UserRepository {
     const result = await this.db.query<UserWithRoles>(`
       SELECT 
         u.id,
-        u.organization_id,
+        u.organization_id AS "organizationId",
         u.email,
-        u.password_hash,
+        u.password_hash AS "passwordHash",
         u.name,
-        u.role_in_org,
-        u.is_active,
-        u.created_at,
-        u.updated_at,
+        u.role_in_org AS "roleInOrg",
+        u.is_active AS "isActive",
+        u.created_at AS "createdAt",
+        u.updated_at AS "updatedAt",
         COALESCE(
           json_agg(
             json_build_object(
               'id', r.id,
               'code', r.code,
               'name', r.name,
-              'organization_id', ur.organization_id
+              'organizationId', ur.organization_id
             )
           ) FILTER (WHERE r.id IS NOT NULL),
           '[]'::json
@@ -89,21 +90,21 @@ export class UserRepository {
     const result = await this.db.query<UserWithRoles>(`
       SELECT 
         u.id,
-        u.organization_id,
+        u.organization_id AS "organizationId",
         u.email,
-        u.password_hash,
+        u.password_hash AS "passwordHash",
         u.name,
-        u.role_in_org,
-        u.is_active,
-        u.created_at,
-        u.updated_at,
+        u.role_in_org AS "roleInOrg",
+        u.is_active AS "isActive",
+        u.created_at AS "createdAt",
+        u.updated_at AS "updatedAt",
         COALESCE(
           json_agg(
             json_build_object(
               'id', r.id,
               'code', r.code,
               'name', r.name,
-              'organization_id', ur.organization_id
+              'organizationId', ur.organization_id
             )
           ) FILTER (WHERE r.id IS NOT NULL),
           '[]'::json
@@ -128,21 +129,21 @@ export class UserRepository {
     const result = await this.db.query<UserWithRoles>(`
       SELECT 
         u.id,
-        u.organization_id,
+        u.organization_id AS "organizationId",
         u.email,
-        u.password_hash,
+        u.password_hash AS "passwordHash",
         u.name,
-        u.role_in_org,
-        u.is_active,
-        u.created_at,
-        u.updated_at,
+        u.role_in_org AS "roleInOrg",
+        u.is_active AS "isActive",
+        u.created_at AS "createdAt",
+        u.updated_at AS "updatedAt",
         COALESCE(
           json_agg(
             json_build_object(
               'id', r.id,
               'code', r.code,
               'name', r.name,
-              'organization_id', ur.organization_id
+              'organizationId', ur.organization_id
             )
           ) FILTER (WHERE r.id IS NOT NULL),
           '[]'::json
@@ -171,14 +172,26 @@ export class UserRepository {
       RETURNING *
     `, [
       data.email,
-      data.password_hash || null,
+      data.passwordHash || null,
       data.name || null,
-      data.role_in_org || 'INDIVIDUAL',
-      data.organization_id || null,
-      data.is_active !== false
+      data.roleInOrg || 'INDIVIDUAL',
+      data.organizationId || null,
+      data.isActive !== false
     ])
 
-    return result.rows[0]
+    // Map DB snake_case to camelCase for return
+    const row: any = result.rows[0] as any
+    return {
+      id: row.id,
+      organizationId: row.organization_id,
+      email: row.email,
+      passwordHash: row.password_hash,
+      name: row.name,
+      roleInOrg: row.role_in_org,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }
   }
 
   async update(id: bigint, data: UpdateUserData): Promise<User | null> {
@@ -192,9 +205,9 @@ export class UserRepository {
       paramCount++
     }
 
-    if (data.password_hash !== undefined) {
+    if (data.passwordHash !== undefined) {
       fields.push(`password_hash = $${paramCount}`)
-      values.push(data.password_hash)
+      values.push(data.passwordHash)
       paramCount++
     }
 
@@ -204,21 +217,21 @@ export class UserRepository {
       paramCount++
     }
 
-    if (data.role_in_org !== undefined) {
+    if (data.roleInOrg !== undefined) {
       fields.push(`role_in_org = $${paramCount}`)
-      values.push(data.role_in_org)
+      values.push(data.roleInOrg)
       paramCount++
     }
 
-    if (data.organization_id !== undefined) {
+    if (data.organizationId !== undefined) {
       fields.push(`organization_id = $${paramCount}`)
-      values.push(data.organization_id)
+      values.push(data.organizationId)
       paramCount++
     }
 
-    if (data.is_active !== undefined) {
+    if (data.isActive !== undefined) {
       fields.push(`is_active = $${paramCount}`)
-      values.push(data.is_active)
+      values.push(data.isActive)
       paramCount++
     }
 
@@ -236,7 +249,18 @@ export class UserRepository {
       RETURNING *
     `, values)
 
-    return result.rows[0] || null
+    const row: any = result.rows[0]
+    return row ? {
+      id: row.id,
+      organizationId: row.organization_id,
+      email: row.email,
+      passwordHash: row.password_hash,
+      name: row.name,
+      roleInOrg: row.role_in_org,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    } : null
   }
 
   async delete(id: bigint): Promise<boolean> {

@@ -1,57 +1,58 @@
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { initializeDatabase, Database } from '@/lib/database'
+import { UserRepository } from '@/lib/repositories/user.repository'
+import { CampaignRepository } from '@/lib/repositories/campaign.repository'
 import { AdminDashboardStats } from '@/components/admin/AdminDashboardStats'
 import { RecentUsers } from '@/components/admin/RecentUsers'
 import { SystemHealth } from '@/components/admin/SystemHealth'
 
 export default async function AdminDashboardPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession()
   
   if (!session) {
     return null
   }
 
   // Get system metrics
-  const [
-    totalUsers,
-    activeUsers,
-    totalCampaigns,
-    campaignsSent,
-    totalEmailsSent,
-    recentUsers,
-    recentCampaigns
-  ] = await Promise.all([
-    prisma.user.count(),
-    prisma.user.count({ where: { isActive: true } }),
-    prisma.campaign.count(),
-    prisma.campaign.count({ where: { status: 'SENT' } }),
-    prisma.campaignMetrics.aggregate({
-      _sum: { totalSent: true }
-    }),
-    prisma.user.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        organization: true
-      }
-    }),
-    prisma.campaign.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: true,
-        organization: true,
-        campaignMetrics: true
-      }
-    })
+  initializeDatabase()
+  const db = new Database()
+  const userRepo = new UserRepository(db)
+  const campRepo = new CampaignRepository(db)
+
+  const [totalUsers, activeUsers, campaignsStats, recentUsersRaw, recentCampaignsRaw] = await Promise.all([
+    userRepo.count(),
+    userRepo.countActive(),
+    campRepo.getStats(),
+    userRepo.findAll(5, 0),
+    campRepo.findAll({ limit: 5, offset: 0 })
   ])
+
+  const totalEmailsSent = { _sum: { totalSent: 0 } }
+  // Approximate emails sent from latest metrics if available
+  const emailsSum = recentCampaignsRaw.reduce((sum, c) => sum + (c.metrics[0]?.total_sent || 0), 0)
+  totalEmailsSent._sum.totalSent = emailsSum
+
+  const recentUsers = recentUsersRaw
+  const recentCampaigns = recentCampaignsRaw.map(c => ({
+    id: c.id,
+    name: c.name,
+    status: c.status,
+    createdAt: c.created_at,
+    sendDate: c.send_date,
+    campaignMetrics: c.metrics.map(m => ({
+      totalSent: m.total_sent,
+      totalOpened: m.total_opened,
+      totalClicked: m.total_clicked
+    }))
+  }))
+
+  await db.release()
 
   const stats = {
     totalUsers,
     activeUsers,
-    totalCampaigns,
-    campaignsSent,
+    totalCampaigns: campaignsStats.total,
+    campaignsSent: campaignsStats.sent,
     totalEmailsSent: totalEmailsSent._sum.totalSent || 0,
     deliverabilityRate: 95.2 // This would be calculated from actual data
   }

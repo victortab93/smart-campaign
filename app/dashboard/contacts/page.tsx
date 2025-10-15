@@ -1,52 +1,39 @@
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { initializeDatabase, Database } from '@/lib/database'
+import { ContactRepository } from '@/lib/repositories/contact.repository'
 import { ContactsList } from '@/components/contacts/ContactsList'
 import { ContactsHeader } from '@/components/contacts/ContactsHeader'
 
 export default async function ContactsPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession()
   
   if (!session) {
     return null
   }
 
-  // Get user's contacts
-  const contacts = await prisma.contact.findMany({
-    where: {
-      OR: [
-        { userId: BigInt(session.user.id) },
-        { organizationId: session.user.organizationId ? BigInt(session.user.organizationId) : undefined }
-      ]
-    },
-    include: {
-      contactTags: true,
-      campaignRecipients: {
-        include: {
-          campaign: true
-        }
-      }
-    },
-    orderBy: { createdAt: 'desc' }
-  })
+  initializeDatabase()
+  const db = new Database()
+  const repo = new ContactRepository(db)
 
-  // Get contact tags for filtering
-  const tags = await prisma.contactTag.findMany({
-    where: {
-      contact: {
-        OR: [
-          { userId: BigInt(session.user.id) },
-          { organizationId: session.user.organizationId ? BigInt(session.user.organizationId) : undefined }
-        ]
-      }
-    },
-    select: {
-      tag: true
-    },
-    distinct: ['tag']
+  const contactsRaw = await repo.findAll({
+    userId: BigInt(session.user.id),
+    organizationId: session.user.organizationId ? BigInt(session.user.organizationId) : undefined
   })
+  const contacts = contactsRaw.map(c => ({
+    id: c.id,
+    userId: c.userId,
+    organizationId: c.organizationId,
+    firstName: c.firstName,
+    lastName: c.lastName,
+    email: c.email,
+    phone: c.phone,
+    createdAt: c.createdAt,
+    contactTags: c.tags.map(tag => ({ tag })),
+    campaignRecipients: []
+  }))
 
-  const uniqueTags = tags.map(t => t.tag)
+  const uniqueTags = await repo.getTags(BigInt(session.user.id), session.user.organizationId ? BigInt(session.user.organizationId) : undefined)
+  await db.release()
 
   return (
     <div className="space-y-6">

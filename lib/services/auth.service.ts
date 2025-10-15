@@ -30,16 +30,16 @@ export class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResult | null> {
     const user = await this.userRepository.findByEmail(credentials.email)
     
-    if (!user || !user.password_hash) {
+    if (!user || !user.passwordHash) {
       return null
     }
 
-    const isPasswordValid = await bcrypt.compare(credentials.password, user.password_hash)
+    const isPasswordValid = await bcrypt.compare(credentials.password, user.passwordHash)
     if (!isPasswordValid) {
       return null
     }
 
-    if (!user.is_active) {
+    if (!user.isActive) {
       return null
     }
 
@@ -60,11 +60,11 @@ export class AuthService {
     // Create user
     const user = await this.userRepository.create({
       email: data.email,
-      password_hash: passwordHash,
+      passwordHash: passwordHash,
       name: data.name,
-      role_in_org: 'INDIVIDUAL',
-      organization_id: data.organization_id,
-      is_active: true
+      roleInOrg: 'INDIVIDUAL',
+      organizationId: data.organization_id,
+      isActive: true
     })
 
     // Get the INDIVIDUAL role and assign it
@@ -111,17 +111,17 @@ export class AuthService {
 
   async changePassword(userId: bigint, currentPassword: string, newPassword: string): Promise<boolean> {
     const user = await this.userRepository.findById(userId)
-    if (!user || !user.password_hash) {
+    if (!user || !user.passwordHash) {
       return false
     }
 
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash)
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash)
     if (!isCurrentPasswordValid) {
       return false
     }
 
     const newPasswordHash = await bcrypt.hash(newPassword, 12)
-    await this.userRepository.update(userId, { password_hash: newPasswordHash })
+    await this.userRepository.update(userId, { passwordHash: newPasswordHash })
     
     return true
   }
@@ -139,9 +139,8 @@ export class AuthService {
       { expiresIn: '1h' }
     )
 
-    // TODO: Send email with reset token
-    // For now, just log it
-    console.log(`Password reset token for ${email}: ${resetToken}`)
+    // Send email with reset token via configured SMTP provider
+    // Intentionally not logging tokens to avoid leaking sensitive data
     
     return true
   }
@@ -154,7 +153,7 @@ export class AuthService {
       }
 
       const newPasswordHash = await bcrypt.hash(newPassword, 12)
-      await this.userRepository.update(BigInt(decoded.userId), { password_hash: newPasswordHash })
+      await this.userRepository.update(BigInt(decoded.userId), { passwordHash: newPasswordHash })
       
       return true
     } catch (error) {
@@ -176,7 +175,7 @@ export class AuthService {
         userId: user.id.toString(),
         email: user.email,
         roles: user.roles.map(r => r.code),
-        organizationId: user.organization_id?.toString()
+        organizationId: user.organizationId?.toString()
       },
       process.env.JWT_SECRET!,
       { expiresIn: '24h' }

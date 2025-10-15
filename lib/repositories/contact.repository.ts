@@ -1,15 +1,16 @@
 import { Database } from '../database'
 
+// CamelCase types exposed to the app; SQL maps snake_case -> camelCase
 export interface Contact {
   id: bigint
-  user_id: bigint | null
-  organization_id: bigint | null
-  first_name: string | null
-  last_name: string | null
+  userId: bigint | null
+  organizationId: bigint | null
+  firstName: string | null
+  lastName: string | null
   email: string
   phone: string | null
-  created_at: Date
-  updated_at: Date
+  createdAt: Date
+  updatedAt: Date
 }
 
 export interface ContactWithTags extends Contact {
@@ -17,26 +18,26 @@ export interface ContactWithTags extends Contact {
 }
 
 export interface CreateContactData {
-  user_id?: bigint
-  organization_id?: bigint
-  first_name?: string
-  last_name?: string
+  userId?: bigint
+  organizationId?: bigint
+  firstName?: string
+  lastName?: string
   email: string
   phone?: string
   tags?: string[]
 }
 
 export interface UpdateContactData {
-  first_name?: string
-  last_name?: string
+  firstName?: string
+  lastName?: string
   email?: string
   phone?: string
   tags?: string[]
 }
 
 export interface ContactFilters {
-  user_id?: bigint
-  organization_id?: bigint
+  userId?: bigint
+  organizationId?: bigint
   search?: string
   tags?: string[]
   limit?: number
@@ -50,14 +51,14 @@ export class ContactRepository {
     const result = await this.db.query<ContactWithTags>(`
       SELECT 
         c.id,
-        c.user_id,
-        c.organization_id,
-        c.first_name,
-        c.last_name,
+        c.user_id AS "userId",
+        c.organization_id AS "organizationId",
+        c.first_name AS "firstName",
+        c.last_name AS "lastName",
         c.email,
         c.phone,
-        c.created_at,
-        c.updated_at,
+        c.created_at AS "createdAt",
+        c.updated_at AS "updatedAt",
         COALESCE(
           array_agg(ct.tag) FILTER (WHERE ct.tag IS NOT NULL),
           ARRAY[]::text[]
@@ -75,14 +76,14 @@ export class ContactRepository {
     let query = `
       SELECT 
         c.id,
-        c.user_id,
-        c.organization_id,
-        c.first_name,
-        c.last_name,
+        c.user_id AS "userId",
+        c.organization_id AS "organizationId",
+        c.first_name AS "firstName",
+        c.last_name AS "lastName",
         c.email,
         c.phone,
-        c.created_at,
-        c.updated_at,
+        c.created_at AS "createdAt",
+        c.updated_at AS "updatedAt",
         COALESCE(
           array_agg(ct.tag) FILTER (WHERE ct.tag IS NOT NULL),
           ARRAY[]::text[]
@@ -119,14 +120,14 @@ export class ContactRepository {
     let query = `
       SELECT 
         c.id,
-        c.user_id,
-        c.organization_id,
-        c.first_name,
-        c.last_name,
+        c.user_id AS "userId",
+        c.organization_id AS "organizationId",
+        c.first_name AS "firstName",
+        c.last_name AS "lastName",
         c.email,
         c.phone,
-        c.created_at,
-        c.updated_at,
+        c.created_at AS "createdAt",
+        c.updated_at AS "updatedAt",
         COALESCE(
           array_agg(ct.tag) FILTER (WHERE ct.tag IS NOT NULL),
           ARRAY[]::text[]
@@ -139,16 +140,16 @@ export class ContactRepository {
     const params: any[] = []
     let paramCount = 0
 
-    if (filters.user_id !== undefined) {
+    if (filters.userId !== undefined) {
       paramCount++
       query += ` AND c.user_id = $${paramCount}`
-      params.push(filters.user_id)
+      params.push(filters.userId)
     }
 
-    if (filters.organization_id !== undefined) {
+    if (filters.organizationId !== undefined) {
       paramCount++
       query += ` AND c.organization_id = $${paramCount}`
-      params.push(filters.organization_id)
+      params.push(filters.organizationId)
     }
 
     if (filters.search) {
@@ -200,15 +201,26 @@ export class ContactRepository {
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
       `, [
-        data.user_id || null,
-        data.organization_id || null,
-        data.first_name || null,
-        data.last_name || null,
+        data.userId || null,
+        data.organizationId || null,
+        data.firstName || null,
+        data.lastName || null,
         data.email,
         data.phone || null
       ])
 
-      const contact = contactResult.rows[0]
+      const row: any = contactResult.rows[0]
+      const contact: Contact = {
+        id: row.id,
+        userId: row.user_id,
+        organizationId: row.organization_id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }
 
       // Add tags if provided
       if (data.tags && data.tags.length > 0) {
@@ -225,14 +237,14 @@ export class ContactRepository {
       const result = await db.query<ContactWithTags>(`
         SELECT 
           c.id,
-          c.user_id,
-          c.organization_id,
-          c.first_name,
-          c.last_name,
+          c.user_id AS "userId",
+          c.organization_id AS "organizationId",
+          c.first_name AS "firstName",
+          c.last_name AS "lastName",
           c.email,
           c.phone,
-          c.created_at,
-          c.updated_at,
+          c.created_at AS "createdAt",
+          c.updated_at AS "updatedAt",
           COALESCE(
             array_agg(ct.tag) FILTER (WHERE ct.tag IS NOT NULL),
             ARRAY[]::text[]
@@ -253,15 +265,15 @@ export class ContactRepository {
       const values: any[] = []
       let paramCount = 1
 
-      if (data.first_name !== undefined) {
+      if (data.firstName !== undefined) {
         fields.push(`first_name = $${paramCount}`)
-        values.push(data.first_name)
+        values.push(data.firstName)
         paramCount++
       }
 
-      if (data.last_name !== undefined) {
+      if (data.lastName !== undefined) {
         fields.push(`last_name = $${paramCount}`)
-        values.push(data.last_name)
+        values.push(data.lastName)
         paramCount++
       }
 
@@ -312,14 +324,14 @@ export class ContactRepository {
       const result = await db.query<ContactWithTags>(`
         SELECT 
           c.id,
-          c.user_id,
-          c.organization_id,
-          c.first_name,
-          c.last_name,
+          c.user_id AS "userId",
+          c.organization_id AS "organizationId",
+          c.first_name AS "firstName",
+          c.last_name AS "lastName",
           c.email,
           c.phone,
-          c.created_at,
-          c.updated_at,
+          c.created_at AS "createdAt",
+          c.updated_at AS "updatedAt",
           COALESCE(
             array_agg(ct.tag) FILTER (WHERE ct.tag IS NOT NULL),
             ARRAY[]::text[]
@@ -404,16 +416,16 @@ export class ContactRepository {
     const params: any[] = []
     let paramCount = 0
 
-    if (filters.user_id !== undefined) {
+    if (filters.userId !== undefined) {
       paramCount++
       query += ` AND c.user_id = $${paramCount}`
-      params.push(filters.user_id)
+      params.push(filters.userId)
     }
 
-    if (filters.organization_id !== undefined) {
+    if (filters.organizationId !== undefined) {
       paramCount++
       query += ` AND c.organization_id = $${paramCount}`
-      params.push(filters.organization_id)
+      params.push(filters.organizationId)
     }
 
     if (filters.search) {

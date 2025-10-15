@@ -15,31 +15,10 @@ import {
   Pause,
   Copy
 } from 'lucide-react'
-
-interface Campaign {
-  id: bigint
-  name: string
-  status: string
-  createdAt: Date
-  sendDate: Date | null
-  campaignContent: {
-    subject: string | null
-  }[]
-  campaignMetrics: {
-    totalSent: number
-    totalOpened: number
-    totalClicked: number
-    totalBounced: number
-  }[]
-  subscription: {
-    plan: {
-      name: string
-    }
-  }
-}
+import type { CampaignListItem } from '@/types/domain'
 
 interface CampaignsListProps {
-  campaigns: Campaign[]
+  campaigns: CampaignListItem[]
 }
 
 export function CampaignsList({ campaigns }: CampaignsListProps) {

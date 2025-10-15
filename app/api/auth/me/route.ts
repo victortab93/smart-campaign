@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         id: user.id.toString(),
         email: user.email,
         name: user.name,
-        organizationId: user.organization_id?.toString(),
+        organizationId: user.organizationId?.toString(),
         roles: user.roles.map(r => r.code)
       }
     })

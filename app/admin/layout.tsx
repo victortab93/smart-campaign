@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { initializeDatabase, Database } from '@/lib/database'
+import { UserRepository } from '@/lib/repositories/user.repository'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 
@@ -10,31 +10,24 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession()
 
   if (!session) {
     redirect('/auth/signin')
   }
 
-  // Check if user has admin privileges
-  const user = await prisma.user.findUnique({
-    where: { id: BigInt(session.user.id) },
-    include: {
-      userRoles: {
-        include: {
-          role: true
-        }
-      }
-    }
-  })
+  // Check if user has admin privileges (raw SQL)
+  initializeDatabase()
+  const db = new Database()
+  const userRepo = new UserRepository(db)
+  const user = await userRepo.findById(BigInt(session.user.id))
+  await db.release()
 
   if (!user) {
     redirect('/auth/signin')
   }
 
-  const hasAdminAccess = user.userRoles.some(ur => 
-    ['SUPER_ADMIN', 'ADMIN_GLOBAL'].includes(ur.role.code)
-  )
+  const hasAdminAccess = user.roles.some(r => ['SUPER_ADMIN', 'ADMIN_GLOBAL'].includes(r.code))
 
   if (!hasAdminAccess) {
     redirect('/dashboard')

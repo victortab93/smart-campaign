@@ -1,55 +1,53 @@
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { initializeDatabase, Database } from '@/lib/database'
+import { SubscriptionRepository } from '@/lib/repositories/subscription.repository'
 import { SubscriptionOverview } from '@/components/subscription/SubscriptionOverview'
 import { PlanComparison } from '@/components/subscription/PlanComparison'
 import { BillingHistory } from '@/components/subscription/BillingHistory'
 
 export default async function SubscriptionPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession()
   
   if (!session) {
     return null
   }
 
-  // Get user's current subscription
-  const subscription = await prisma.subscription.findFirst({
-    where: {
-      OR: [
-        { userId: BigInt(session.user.id) },
-        { organizationId: session.user.organizationId ? BigInt(session.user.organizationId) : undefined }
-      ],
-      status: 'ACTIVE'
-    },
-    include: {
-      plan: {
-        include: {
-          planFeatures: {
-            include: {
-              feature: true
-            }
-          }
-        }
-      },
-      invoices: {
-        orderBy: { issuedAt: 'desc' },
-        take: 10
+  initializeDatabase()
+  const db = new Database()
+  const repo = new SubscriptionRepository(db)
+  const active = await repo.findActiveByUserId(BigInt(session.user.id))
+  const subscription = active
+    ? {
+        id: active.id,
+        status: active.status,
+        startDate: active.start_date,
+        endDate: active.end_date,
+        trialEndDate: active.trial_end_date,
+        autoRenew: active.auto_renew,
+        plan: {
+          id: active.plan.id,
+          code: active.plan.code,
+          name: active.plan.name,
+          description: active.plan.description,
+          priceMonthly: Number(active.plan.price_monthly),
+          priceYearly: active.plan.price_yearly ? Number(active.plan.price_yearly) : null,
+          planFeatures: active.features.map(f => ({ feature: { name: f.name, type: 'limit' }, value: f.value }))
+        },
+        invoices: []
       }
-    }
-  })
+    : null
 
-  // Get all available plans
-  const plans = await prisma.plan.findMany({
-    where: { isActive: true },
-    include: {
-      planFeatures: {
-        include: {
-          feature: true
-        }
-      }
-    },
-    orderBy: { priceMonthly: 'asc' }
-  })
+  const plansRaw = await repo.getAllPlans()
+  const plans = plansRaw.map(p => ({
+    id: p.id,
+    code: p.code,
+    name: p.name,
+    description: p.description,
+    priceMonthly: Number(p.price_monthly),
+    priceYearly: p.price_yearly ? Number(p.price_yearly) : null,
+    planFeatures: p.features.map(pf => ({ feature: { name: pf.feature.name, type: pf.feature.type }, value: pf.value }))
+  }))
+  await db.release()
 
   return (
     <div className="space-y-6">

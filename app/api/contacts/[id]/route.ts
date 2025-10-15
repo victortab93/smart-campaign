@@ -22,7 +22,7 @@ async function getAuthContext(request: NextRequest): Promise<{ userId: bigint; o
 
   return {
     userId: user.id,
-    organizationId: user.organization_id,
+    organizationId: user.organizationId,
     roles: user.roles.map(r => r.code)
   }
 }
